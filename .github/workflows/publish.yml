@@ -1,0 +1,35 @@
+name: publish
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: unlock publisher (code is stored encrypted)
+        env:
+          PUBKEY: ${{ secrets.FILMKO_PUBKEY }}
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -iter 10000 -md sha256 -pass env:PUBKEY -in tools/publish.py.enc -out "$RUNNER_TEMP/publish.py"
+      - name: publish ready videos (no phone needed)
+        env:
+          HLKEY: ${{ secrets.FILMKO_HLKEY }}
+          PUBKEY: ${{ secrets.FILMKO_PUBKEY }}
+        run: python3 "$RUNNER_TEMP/publish.py"
+      - name: commit
+        run: |
+          git config user.name filmko
+          git config user.email filmko@users.noreply.github.com
+          git add db
+          if ! git diff --cached --quiet; then
+            git commit -qm "auto publish"
+            git pull -q --rebase -X theirs || true
+            git push -q || true
+          fi
