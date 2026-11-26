@@ -30,6 +30,6 @@ jobs:
           git add db
           if ! git diff --cached --quiet; then
             git commit -qm "auto publish"
-            git pull -q --rebase -X theirs || true
+            git pull -q --rebase -X ours || true
             git push -q || true
           fi
